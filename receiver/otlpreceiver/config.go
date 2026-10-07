@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/collector/config/configgrpc"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/config/configoptional"
+	"go.opentelemetry.io/collector/confmap"
 )
 
 type SanitizedURLPath string
@@ -48,6 +49,13 @@ type HTTPConfig struct {
 
 	// prevent unkeyed literal initialization
 	_ struct{}
+}
+
+var _ confmap.Unmarshaler = (*HTTPConfig)(nil)
+
+func (cfg *HTTPConfig) Unmarshal(conf *confmap.Conf) error {
+	type plainConfig HTTPConfig
+	return cfg.ServerConfig.UnmarshalConfig(conf, (*plainConfig)(cfg))
 }
 
 // Protocols is the configuration for the supported protocols.

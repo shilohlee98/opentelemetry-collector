@@ -8,6 +8,7 @@ import (
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
+	"go.opentelemetry.io/collector/confmap"
 )
 
 // Config has the configuration for the extension enabling the zPages extension.
@@ -29,6 +30,13 @@ type ExpvarConfig struct {
 }
 
 var _ component.Config = (*Config)(nil)
+
+var _ confmap.Unmarshaler = (*Config)(nil)
+
+func (cfg *Config) Unmarshal(conf *confmap.Conf) error {
+	type plainConfig Config
+	return cfg.ServerConfig.UnmarshalConfig(conf, (*plainConfig)(cfg))
+}
 
 // Validate checks if the extension configuration is valid
 func (cfg *Config) Validate() error {

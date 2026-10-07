@@ -82,6 +82,24 @@ func TestUnmarshalConfig(t *testing.T) {
 		}, cfg)
 }
 
+func TestUnmarshalConfigUnknownKeys(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		input map[string]any
+		key   string
+	}{
+		{"compression typo", map[string]any{"compresion": "gzip"}, "compresion"}, //nolint:misspell // Reproduce the misspelled key from issue #15907.
+		{"retry typo", map[string]any{"retry": map[string]any{"enabled": false}}, "retry"},
+		{"nested retry typo", map[string]any{"retry_on_failure": map[string]any{"enable": false}}, "enable"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := NewFactory().CreateDefaultConfig()
+			cm := confmap.NewFromStringMap(tt.input)
+			assert.ErrorContains(t, cm.Unmarshal(cfg), "invalid keys: "+tt.key)
+		})
+	}
+}
+
 func TestUnmarshalConfigInvalidEncoding(t *testing.T) {
 	cm, err := confmaptest.LoadConf(filepath.Join("testdata", "bad_invalid_encoding.yaml"))
 	require.NoError(t, err)

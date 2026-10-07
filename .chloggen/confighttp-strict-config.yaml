@@ -1,0 +1,10 @@
+change_type: bug_fix
+component: pkg/confighttp
+note: Reject unknown configuration keys in the OTLP HTTP receiver, OTLP HTTP exporter, and zPages extension.
+issues: [15907]
+subtext: |
+  Add ClientConfig.UnmarshalConfig and ServerConfig.UnmarshalConfig for strict decoding
+  of a complete owning configuration while preserving HTTP keepalive migration.
+  Other components must adopt these methods to restore unknown-key validation;
+  the existing Unmarshal methods retain their compatibility behavior.
+change_logs: [user, api]

@@ -12,6 +12,7 @@ import (
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/config/configoptional"
 	"go.opentelemetry.io/collector/config/configretry"
+	"go.opentelemetry.io/collector/confmap"
 	"go.opentelemetry.io/collector/exporter/exporterhelper"
 )
 
@@ -67,6 +68,13 @@ type Config struct {
 }
 
 var _ component.Config = (*Config)(nil)
+
+var _ confmap.Unmarshaler = (*Config)(nil)
+
+func (cfg *Config) Unmarshal(conf *confmap.Conf) error {
+	type plainConfig Config
+	return cfg.ClientConfig.UnmarshalConfig(conf, (*plainConfig)(cfg))
+}
 
 // Validate checks if the exporter configuration is valid
 func (cfg *Config) Validate() error {

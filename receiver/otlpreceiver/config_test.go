@@ -189,6 +189,26 @@ func TestUnmarshalConfigUnix(t *testing.T) {
 }
 
 // cspell:ignore htttp
+func TestUnmarshalConfigUnknownHTTPKeys(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		http map[string]any
+		key  string
+	}{
+		{"tls typo", map[string]any{"tls_settings": map[string]any{"cert_file": "server.crt"}}, "tls_settings"},
+		{"path typo", map[string]any{"trace_url_path": "/traces"}, "trace_url_path"},
+		{"nested tls typo", map[string]any{"tls": map[string]any{"cert_flie": "server.crt"}}, "cert_flie"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := NewFactory().CreateDefaultConfig()
+			cm := confmap.NewFromStringMap(map[string]any{
+				"protocols": map[string]any{"http": tt.http},
+			})
+			assert.ErrorContains(t, cm.Unmarshal(cfg), "invalid keys: "+tt.key)
+		})
+	}
+}
+
 func TestUnmarshalConfigTypoDefaultProtocol(t *testing.T) {
 	cm, err := confmaptest.LoadConf(filepath.Join("testdata", "typo_default_proto_config.yaml"))
 	require.NoError(t, err)

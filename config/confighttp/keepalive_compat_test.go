@@ -265,15 +265,9 @@ func TestKeepaliveCompatNewSyntaxMarshalRoundtrip(t *testing.T) {
 	assert.False(t, transport.DisableKeepAlives)
 }
 
-// Strict unmarshaling rejects unknown keys on main, but implementing
-// confmap.Unmarshaler on ClientConfig/ServerConfig forfeits this for every
-// embedding component: for squash embedding, confmap's embedded-structs hook
-// decodes sibling fields with unused keys ignored, and for named sections the
-// Unmarshal implementation must use WithIgnoreUnused to support the squash
-// case. These tests document that accepted trade-off. If they start failing,
-// strict checking has been restored (e.g. the Unmarshaler was removed or
-// confmap learned to track unused keys across the hook) and they should be
-// flipped back to asserting an error.
+// The legacy Unmarshal methods ignore unknown keys to support squashed configs
+// with sibling fields. These tests document the behavior retained for consumers
+// that have not adopted UnmarshalConfig for strict decoding of the owning config.
 func TestKeepaliveCompatUnknownKeyIgnoredSquash(t *testing.T) {
 	cfg := namedSquashClientConfig{ClientConfig: NewDefaultClientConfig()}
 	conf := confmap.NewFromStringMap(map[string]any{

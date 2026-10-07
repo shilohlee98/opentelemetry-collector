@@ -22,6 +22,24 @@ func TestUnmarshalDefaultConfig(t *testing.T) {
 	assert.Equal(t, factory.CreateDefaultConfig(), cfg)
 }
 
+func TestUnmarshalConfigUnknownKeys(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		input map[string]any
+		key   string
+	}{
+		{"tls typo", map[string]any{"tls_settings": map[string]any{"cert_file": "server.crt"}}, "tls_settings"},
+		{"expvar typo", map[string]any{"expavr": map[string]any{"enabled": true}}, "expavr"},
+		{"nested expvar typo", map[string]any{"expvar": map[string]any{"enable": true}}, "enable"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := NewFactory().CreateDefaultConfig()
+			cm := confmap.NewFromStringMap(tt.input)
+			assert.ErrorContains(t, cm.Unmarshal(cfg), "invalid keys: "+tt.key)
+		})
+	}
+}
+
 func TestInvalidConfig(t *testing.T) {
 	assert.Error(t, (&Config{}).Validate())
 }

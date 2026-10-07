@@ -182,11 +182,30 @@ func NewDefaultClientConfig() ClientConfig {
 
 var _ confmap.Unmarshaler = (*ClientConfig)(nil)
 
+// Unmarshal preserves keepalive migration for existing consumers, ignoring
+// unknown keys to allow sibling fields in squashed configs. Owning configs
+// should call UnmarshalConfig from their Unmarshal method for strict decoding.
 func (cc *ClientConfig) Unmarshal(conf *confmap.Conf) error {
+	return cc.unmarshalConfig(conf, func() error {
+		return conf.Unmarshal(cc, confmap.WithIgnoreUnused())
+	})
+}
+
+// UnmarshalConfig decodes a complete configuration containing ClientConfig and
+// migrates its keepalive settings, rejecting unknown keys. result must point to
+// the complete config, with this ClientConfig as a named, squashed field.
+// Use a new type definition without Unmarshal methods for result.
+func (cc *ClientConfig) UnmarshalConfig(conf *confmap.Conf, result any) error {
+	return cc.unmarshalConfig(conf, func() error {
+		return unmarshalConfig(conf, result)
+	})
+}
+
+func (cc *ClientConfig) unmarshalConfig(conf *confmap.Conf, decode func() error) error {
 	if metadata.PkgConfighttpPrioritizeNewKeepaliveFeatureGate.IsEnabled() {
-		return cc.unmarshalPrioritizeKeepalive(conf)
+		return cc.unmarshalPrioritizeKeepalive(conf, decode)
 	}
-	return cc.unmarshalPrioritizeDeprecatedFields(conf)
+	return cc.unmarshalPrioritizeDeprecatedFields(conf, decode)
 }
 
 // unmarshalPrioritizeKeepalive implements confmap.Unmarshaler. The keepalive settings can arrive
@@ -208,13 +227,11 @@ func (cc *ClientConfig) Unmarshal(conf *confmap.Conf) error {
 // The deprecated fields end up holding the effective settings and remain the
 // sole source of truth for ToClient during their deprecation window; Keepalive
 // is always left as None.
-func (cc *ClientConfig) unmarshalPrioritizeKeepalive(conf *confmap.Conf) error {
+func (cc *ClientConfig) unmarshalPrioritizeKeepalive(conf *confmap.Conf, decode func() error) error {
 	// Step 1: decode the configuration. Deprecated keys overwrite their
 	// fields directly; the 'keepalive' section decodes into Keepalive and is
-	// folded in step 4. WithIgnoreUnused is needed because ClientConfig is
-	// commonly squash-embedded into component configs, in which case conf
-	// also holds the parent's sibling fields.
-	if err := conf.Unmarshal(cc, confmap.WithIgnoreUnused()); err != nil {
+	// folded in step 4.
+	if err := decode(); err != nil {
 		return err
 	}
 
@@ -289,7 +306,7 @@ func (cc *ClientConfig) unmarshalPrioritizeKeepalive(conf *confmap.Conf) error {
 // The deprecated fields end up holding the effective settings and remain the
 // sole source of truth for ToClient during their deprecation window; Keepalive
 // is always left as None.
-func (cc *ClientConfig) unmarshalPrioritizeDeprecatedFields(conf *confmap.Conf) error {
+func (cc *ClientConfig) unmarshalPrioritizeDeprecatedFields(conf *confmap.Conf, decode func() error) error {
 	// Step 1: fold a programmatically set Keepalive into the deprecated
 	// fields. This must precede decoding so that the configuration overrides
 	// it. A present value can only mean keep-alives enabled with these
@@ -303,10 +320,8 @@ func (cc *ClientConfig) unmarshalPrioritizeDeprecatedFields(conf *confmap.Conf) 
 
 	// Step 2: decode the configuration. Deprecated keys overwrite their
 	// fields directly; the 'keepalive' section decodes into Keepalive and is
-	// folded in step 4. WithIgnoreUnused is needed because ClientConfig is
-	// commonly squash-embedded into component configs, in which case conf
-	// also holds the parent's sibling fields.
-	if err := conf.Unmarshal(cc, confmap.WithIgnoreUnused()); err != nil {
+	// folded in step 4.
+	if err := decode(); err != nil {
 		return err
 	}
 
